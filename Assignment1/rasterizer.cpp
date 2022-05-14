@@ -161,7 +161,8 @@ void rst::rasterizer::draw(rst::pos_buf_id pos_buffer, rst::ind_buf_id ind_buffe
 
         for (auto& vec : v) {
             vec /= vec.w();
-            // out of cube [-1, 1], just cut off 
+            // out of cube [-1, 1], just cut off
+            // 注意此处做了剪切，只对3点都处于[-1,1]正方体(NDC坐标)中的点绘制三角形，其他点均处于视锥外，不进行光栅化
             if (vec[0] < -1 || vec[0] > 1) return;
             if (vec[1] < -1 || vec[1] > 1) return;
             if (vec[2] < -1 || vec[2] > 1) return;
