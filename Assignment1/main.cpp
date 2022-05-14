@@ -6,25 +6,37 @@
 
 constexpr double MY_PI = 3.1415926;
 
-Eigen::Matrix4f get_view_matrix(Eigen::Vector3f eye_pos)
+Eigen::Matrix4f get_view_matrix(Eigen::Vector3f eye_pos, Eigen::Vector3f gaze, Eigen::Vector3f view_up)
 {
-    // 变换到相机视角
+    // 变换到相机视角 view transformation
     Eigen::Matrix4f view = Eigen::Matrix4f::Identity();
-
+    gaze.normalize();
+    view_up.normalize();
+    Eigen::Vector3f z = -1 * gaze;
+    std::cout << z << std::endl;
+    Eigen::Vector3f x = view_up.cross(z);
+    x.normalize();
+    Eigen::Vector3f y = z.cross(x);
+    y.normalize();
     Eigen::Matrix4f translate;
-    translate << 1, 0, 0, -eye_pos[0],
-                 0, 1, 0, -eye_pos[1],
-                 0, 0, 1, -eye_pos[2],
+    Eigen::Matrix4f move;
+    move << 1, 0, 0, -eye_pos[0],
+            0, 1, 0, -eye_pos[1],
+            0, 0, 1, -eye_pos[2],
+            0, 0, 0, 1;
+    translate << x[0], y[0], z[0], 0,
+                 x[1], y[1], z[1], 0,
+                 x[2], y[2], z[2], 0,
                  0, 0, 0, 1;
 
-    view = translate * view;
+    view = view * translate * move;
 
     return view;
 }
 
 Eigen::Matrix4f get_model_matrix(float rotation_angle)
 {
-    // 旋转模型
+    // 旋转模型 model transformation
     Eigen::Matrix4f model = Eigen::Matrix4f::Identity();
 
     // Create the model matrix for rotating the triangle around the Z axis.
@@ -43,7 +55,7 @@ Eigen::Matrix4f get_model_matrix(float rotation_angle)
 Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio,
                                       float zNear, float zFar)
 {
-    // Students will implement this function
+    // projection transformation
     Eigen::Matrix4f projection = Eigen::Matrix4f::Identity();
     float fov_angle = eye_fov / 2.0 * MY_PI / 180.0;
     float t = abs(zNear) * tan(fov_angle);
@@ -91,6 +103,10 @@ int main(int argc, const char** argv)
     rst::rasterizer r(700, 700);
 
     Eigen::Vector3f eye_pos = {0, 0, 5};
+    float gaze_xaxis_angle = 0;
+    float gaze_yaxis_angle = 0;
+    Eigen::Vector3f gaze = {0, 0, -1}; // -z axis
+    Eigen::Vector3f view_up = {0, 1, 0};
 
     std::vector<Eigen::Vector3f> pos{{2, 0, -2}, {0, 2, -2}, {-2, 0, -2}};
 
@@ -106,8 +122,8 @@ int main(int argc, const char** argv)
         r.clear(rst::Buffers::Color | rst::Buffers::Depth);
 
         r.set_model(get_model_matrix(angle));
-        r.set_view(get_view_matrix(eye_pos));
-        r.set_projection(get_projection_matrix(45, 1, -0.1, -50));
+        r.set_view(get_view_matrix(eye_pos, gaze, view_up));
+        r.set_projection(get_projection_matrix(45, 1, 0.1, 50));
 
         r.draw(pos_id, ind_id, rst::Primitive::Triangle);
         cv::Mat image(700, 700, CV_32FC3, r.frame_buffer().data());
@@ -119,11 +135,13 @@ int main(int argc, const char** argv)
     }
 
     while (key != 27) {
+        pos_id = r.load_positions(pos);
         r.clear(rst::Buffers::Color | rst::Buffers::Depth);
 
         r.set_model(get_model_matrix(angle));
-        r.set_view(get_view_matrix(eye_pos));
-        r.set_projection(get_projection_matrix(45, 1, 0.1, 50));
+        auto view_mat = get_view_matrix(eye_pos, gaze, view_up);
+        r.set_view(view_mat);
+        r.set_projection(get_projection_matrix(45, 1, -0.1, -50));
 
         r.draw(pos_id, ind_id, rst::Primitive::Triangle);
 
@@ -133,12 +151,71 @@ int main(int argc, const char** argv)
         key = cv::waitKey(10);
 
         std::cout << "frame count: " << frame_count++ << '\n';
-
+        std::cout << "z pos:" << pos[0][2] << std::endl;
         if (key == 'a') {
             angle += 10;
         }
         else if (key == 'd') {
             angle -= 10;
+        }
+        if (key == 'c') {
+            // z-y rotate camera
+            gaze_yaxis_angle += 10;
+            auto angle = gaze_yaxis_angle * MY_PI / 180.0;
+            gaze[2] = -cos(angle);
+            gaze[1] = sin(angle);
+        }
+        else if (key == 'v') {
+            // z-y rotate camera
+            gaze_yaxis_angle -= 10;
+            auto angle = gaze_yaxis_angle * MY_PI / 180.0;
+            gaze[2] = -cos(angle);
+            gaze[1] = sin(angle);
+        }
+        if (key == 'z') {
+            // x-z plane rotate camera
+            gaze_xaxis_angle += 10;
+            auto angle = gaze_xaxis_angle * MY_PI / 180.0;
+            gaze[2] = -cos(angle);
+            gaze[0] = sin(angle);
+        }
+        else if (key == 'x') {
+            //  x-z plane rotate camera
+            gaze_xaxis_angle -= 10;
+            auto angle = gaze_xaxis_angle * MY_PI / 180.0;
+            gaze[2] = -cos(angle);
+            gaze[0] = sin(angle);
+        }
+        if (key == 'b') {
+            gaze[2]++;
+        }
+        else if (key == 'n') {
+            gaze[2]--;
+        }
+        if (key == 'q') {
+            // change object z axis pos
+            pos[0][2]++;
+            pos[1][2]++;
+            pos[2][2]++;
+        }
+        else if (key == 'e') {
+            // change object z axis pos
+            pos[0][2]--;
+            pos[1][2]--;
+            pos[2][2]--;
+        }
+        // change camera pos
+        if (key == 'i') {
+            // raise camera
+            eye_pos[1]++;
+        }
+        else if (key == 'k') {
+            // down camera
+            eye_pos[1]--;
+        } else if (key == 'j') {
+            eye_pos[2]--;
+        } else if (key == 'l') {
+            eye_pos[2]++;
         }
     }
 

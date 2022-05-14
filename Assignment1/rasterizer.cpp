@@ -154,10 +154,23 @@ void rst::rasterizer::draw(rst::pos_buf_id pos_buffer, rst::ind_buf_id ind_buffe
                 mvp * to_vec4(buf[i[1]], 1.0f),
                 mvp * to_vec4(buf[i[2]], 1.0f)
         };
+        std::cout << "after transform:" << std::endl;
+        std::cout << v[0] << std::endl << std::endl;   
+        std::cout << v[1] << std::endl << std::endl;
+        std::cout << v[2] << std::endl << std::endl;
 
         for (auto& vec : v) {
             vec /= vec.w();
+            // out of cube [-1, 1], just cut off 
+            if (vec[0] < -1 || vec[0] > 1) return;
+            if (vec[1] < -1 || vec[1] > 1) return;
+            if (vec[2] < -1 || vec[2] > 1) return;
         }
+
+        std::cout << "actually pos after transform:" << std::endl;
+        std::cout << v[0] << std::endl << std::endl;   
+        std::cout << v[1] << std::endl << std::endl;
+        std::cout << v[2] << std::endl << std::endl;
 
         for (auto & vert : v)
         {
