@@ -150,7 +150,32 @@ Vector3f castRay(
                 Vector3f reflectionColor = castRay(reflectionRayOrig, reflectionDirection, scene, depth + 1);
                 Vector3f refractionColor = castRay(refractionRayOrig, refractionDirection, scene, depth + 1);
                 float kr = fresnel(dir, N, payload->hit_obj->ior);
-                hitColor = reflectionColor * kr + refractionColor * (1 - kr);
+
+                /* add phong shading */
+                // Vector3f lightAmt = 0, specularColor = 0;
+                // Vector3f shadowPointOrig = (dotProduct(dir, N) < 0) ?
+                //                            hitPoint + N * scene.epsilon :
+                //                            hitPoint - N * scene.epsilon;
+                // for (auto& light : scene.get_lights()) {
+                //     Vector3f lightDir = light->position - hitPoint;
+                //     // square of the distance between hitPoint and the light
+                //     float lightDistance2 = dotProduct(lightDir, lightDir);
+                //     lightDir = normalize(lightDir);
+                //     float LdotN = std::max(0.f, dotProduct(lightDir, N));
+                //     // is the point in shadow, and is the nearest occluding object closer to the object than the light itself?
+                //     auto shadow_res = trace(shadowPointOrig, lightDir, scene.get_objects());
+                //     bool inShadow = shadow_res && (shadow_res->tNear * shadow_res->tNear < lightDistance2);
+
+                //     lightAmt += inShadow ? 0 : light->intensity * LdotN;
+                //     Vector3f reflectionDirect = reflect(-lightDir, N);
+
+                //     specularColor += powf(std::max(0.f, -dotProduct(reflectionDirect, dir)),
+                //         payload->hit_obj->specularExponent) * light->intensity;
+                // }
+                // auto phongColor = lightAmt * payload->hit_obj->evalDiffuseColor(st) * payload->hit_obj->Kd + specularColor * payload->hit_obj->Ks;
+
+
+                hitColor = /*phongColor +*/ reflectionColor * kr + refractionColor * (1 - kr);
                 break;
             }
             case REFLECTION:
@@ -223,14 +248,17 @@ void Renderer::Render(const Scene& scene)
         for (int i = 0; i < scene.width; ++i)
         {
             // generate primary ray direction
-            float x;
-            float y;
+            float x = 2 * (((float)i + 0.5) / scene.width) - 1;
+            float y = 1.0 - 2 * (((float)j + 0.5) / scene.height);
+            y *= scale;
+            x *= (scale * imageAspectRatio);
             // TODO: Find the x and y positions of the current pixel to get the direction
             // vector that passes through it.
             // Also, don't forget to multiply both of them with the variable *scale*, and
             // x (horizontal) variable with the *imageAspectRatio*            
 
             Vector3f dir = Vector3f(x, y, -1); // Don't forget to normalize this direction!
+            dir = normalize(dir);
             framebuffer[m++] = castRay(eye_pos, dir, scene, 0);
         }
         UpdateProgress(j / (float)scene.height);
