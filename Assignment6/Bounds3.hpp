@@ -97,6 +97,28 @@ inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir,
     // dirIsNeg: ray direction(x,y,z), dirIsNeg=[int(x>0),int(y>0),int(z>0)], use this to simplify your logic
     // TODO test if ray bound intersects
     
+    // P - (O + t * dir) * (1, 0, 0) = 0; /* x axie */ -> t = ((P - O) / dir).x
+    // P - (O + t * dir) * (0, 1, 0) = 0; /* y axie */ -> t = ((P - O) / dir).y
+    // P - (O + t * dir) * (0, 0, 1) = 0; /* x axie */ -> t = ((P - O) / dir).z
+    float x_pair_tenter = (pMin.x - ray.origin.x) * invDir.x;
+    float x_pair_texit = (pMax.x - ray.origin.x) * invDir.x;
+    float y_pair_tenter = (pMin.y - ray.origin.y) * invDir.y;
+    float y_pair_texit = (pMax.y - ray.origin.y) * invDir.y;
+    float z_pair_tenter = (pMin.z - ray.origin.z) * invDir.z;
+    float z_pair_texit = (pMax.z - ray.origin.z) * invDir.z;
+    // tmin tmax should be swapped if ray reverse axie
+    if (!dirIsNeg[0]){ /* or ray.x < 0 */
+        std::swap(x_pair_tenter, x_pair_texit);
+    }
+    if (!dirIsNeg[1]){ /* or ray.y < 0 */
+        std::swap(y_pair_tenter, y_pair_texit);
+    }
+    if (!dirIsNeg[2]){ /* or ray.z < 0 */
+        std::swap(z_pair_tenter, z_pair_texit);
+    }
+    float tenter = std::max(x_pair_tenter, std::max(y_pair_tenter, z_pair_tenter));
+    float texit = std::min(x_pair_texit, std::min(y_pair_texit, z_pair_texit));
+    return tenter < texit && texit >= 0;
 }
 
 inline Bounds3 Union(const Bounds3& b1, const Bounds3& b2)
